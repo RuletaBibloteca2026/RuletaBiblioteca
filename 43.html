@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reto de la ruleta - Biblioteca Unisabana</title>
+    <style>
+        :root {
+            --primary: #002f56; /* Azul institucional Unisabana */
+            --secondary: #d4af37; /* Dorado institucional Unisabana */
+            --dark: #0b131a;
+            --light: #ffffff; /* Fondo totalmente blanco */
+            --bg-accent: #f8fafc; /* Gris muy claro para contraste */
+            --text-dark: #1e293b; /* Texto oscuro para fondo blanco */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            color: var(--text-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 40px 20px 20px 20px;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        /* --- Logotipo Superior Izquierdo --- */
+        .logo-container {
+            position: absolute;
+            top: 25px;
+            left: 35px;
+            z-index: 40;
+        }
+
+        .logo-container img {
+            height: 65px; /* Tamaño ideal para el encabezado */
+            display: block;
+            object-fit: contain;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 60px;
+            max-width: 1300px;
+            width: 100%;
+            margin-top: 60px; /* Margen para respetar el espacio del logo superior */
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1100px) {
+            .game-container {
+                flex-direction: column;
+                gap: 40px;
+                margin-top: 20px;
+            }
+            .logo-container {
+                position: relative;
+                top: 0;
+                left: 0;
+                margin-bottom: 10px;
+            }
+        }
+
+        /* --- Contenedor e Indicador de la Ruleta --- */
+        .wheel-box {
+            position: relative;
+            width: 560px;
+            height: 560px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 25px solid transparent;
+            border-right: 25px solid transparent;
+            border-top: 50px solid var(--secondary);
+            z-index: 30;
+            filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.15));
+        }
+
+        canvas {
+            border-radius: 50%;
+            border: 10px solid var(--primary); /* Marco azul fuerte para resaltar en el fondo blanco */
+            box-shadow: 0 15px 45px rgba(0, 47, 86, 0.15);
+            background-color: #ffffff;
+            z-index: 10;
+        }
+
+        .spin-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 95px;
+            height: 95px;
+            border-radius: 50%;
+            background-color: var(--light);
+            color: var(--primary);
+            border: 5px solid var(--secondary);
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+            z-index: 25;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .spin-btn:hover {
+            background-color: var(--bg-accent);
+        }
+
+        .spin-btn:active {
+            transform: translate(-50%, -50%) scale(0.92);
+        }
+
+        /* --- Lista de Opciones Laterales --- */
+        .books-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 400px;
+        }
+
+        .book-item {
+            background-color: var(--bg-accent);
+            color: var(--text-dark);
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            transition: all 0.25s;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        }
+
+        .book-item:hover {
+            border-left-color: var(--secondary);
+            background-color: #e2e8f0;
+            transform: translateX(5px);
+        }
+
+        .book-item.selected-item {
+            background-color: var(--primary);
+            color: var(--light);
+            font-weight: bold;
+            border-left-color: var(--secondary);
+            box-shadow: 0 4px 12px rgba(0, 47, 86, 0.2);
+        }
+
+        /* --- Modal Portada Única --- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background-color: #ffffff;
+            padding: 35px 25px 25px 25px;
+            border-radius: 16px;
+            max-width: 480px;
+            width: 90%;
+            text-align: center;
+            border: 3px solid var(--primary);
+            animation: fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+            transition: max-width 0.3s ease;
+        }
+
+        /* Tamaño máximo idéntico para la vista gigante de las obras de arte */
+        .modal-content.large-view {
+            max-width: 1100px;
+            width: 95%;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 12px;
+            right: 18px;
+            font-size: 30px;
+            color: #94a3b8;
+            cursor: pointer;
+            z-index: 110;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover {
+            color: var(--dark);
+        }
+
+        .cover-art {
+            width: 340px;   
+            height: 470px;  
+            margin: 10px auto;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 0; 
+            box-sizing: border-box;
+            color: #fff;
+            position: relative;
+            overflow: hidden; 
+            background-color: #ffffff;
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+
+        /* Contenedor de gran formato */
+        .cover-art.expanded-art {
+            width: 100%;
+            height: auto;
+            max-height: 75vh;
+        }
+
+        /* Contenedor temático para tarjetas generadas por código CSS (como Falta) */
+        .cover-art.generated-css {
+            padding: 40px 20px;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .cover-title {
+            font-size: 28px;
+            font-weight: bold;
+            font-family: Georgia, serif;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            line-height: 1.3;
+        }
+
+        .cover-badge {
+            background-color: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border: 1px solid rgba(255,255,255,0.4);
+        }
+
+        .cover-img {
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff; 
+            display: block;
+        }
+
+        .cover-img.with-footer {
+            height: auto;
+            max-height: calc(100% - 75px); /* Ajuste dinámico de la imagen para respetar el alto del pie de página */
+            object-fit: contain; 
+        }
+
+        .cover-img.full-view {
+            object-fit: contain;
+        }
+
+        .cover-img.scaled-view {
+            width: 100%;
+            height: auto;
+            max-height: 75vh;
+            object-fit: contain;
+        }
+
+        .cover-footer-text {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background-color: rgba(0, 0, 0, 0.85);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            font-family: sans-serif;
+            box-sizing: border-box;
+        }
+
+        /* Clase adaptativa unificada tipo Grid para imitar exactamente la foto del Artículo 4 */
+        .cover-footer-text.multiline {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 75px; /* Altura exacta fija compartida por los artículos 4, 6, 8 y 11 */
+            padding: 10px 15px;
+            font-size: 12px;
+            line-height: 1.3;
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Dos columnas iguales */
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 10px;
+        }
+
+        /* Estilo para la columna izquierda (Indicaciones de página) */
+        .cover-footer-text.multiline div:first-child {
+            text-align: center;
+            font-weight: bold;
+            border-right: 1px solid rgba(255, 255, 255, 0.2); /* Línea divisoria muy sutil */
+            padding-right: 5px;
+        }
+
+        /* Estilo para la columna derecha (Título del apartado) */
+        .cover-footer-text.multiline div:last-child {
+            text-align: center;
+            font-style: italic;
+            font-weight: normal;
+        }
+
+        /* --- CLASE DE COLOR DIFERENCIADO SOLICITADO --- */
+        .label-highlight {
+            color: #e11d48; /* Rojo coral intenso y llamativo */
+            font-weight: 800;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="logo-container">
+        <img src="Imagen6.png" alt="Universidad de La Sabana">
+    </div>
+
+    <div class="game-container">
+        <div class="wheel-box">
+            <div class="pointer"></div>
+            <canvas id="wheelCanvas" width="540" height="540"></canvas>
+            <button class="spin-btn" onclick="spinWheel()">GIRAR</button>
+        </div>
+
+        <div class="books-list" id="booksList"></div>
+    </div>
+
+    <div class="modal" id="bookModal">
+        <div class="modal-content" id="modalContent">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 id="modalBookTitle" style="color: var(--primary); margin: 0 0 20px 0; font-family: Georgia, serif; font-size: 21px; line-height: 1.4; font-weight: bold;"></h3>
+             
+            <div class="cover-art" id="modalCoverArt"></div>
+        </div>
+    </div>
+
+    <script>
+        const librosData = [
+            { 
+                titulo: "Libro", 
+                tituloLargo: "Libro: Hacer visible el pensamiento", 
+                color: "#1e3a8a", 
+                border: "#d4af37", 
+                imagen: "WhatsApp Image 2026-06-20 at 5.21.38 PM.jpeg", 
+                piePagina: "<div>Página 69:<br>Primeros dos párrafos del apartado</div><div>Introducción</div>" 
+            },
+            { 
+                titulo: "Fake News", 
+                tituloLargo: "Fake News: Al mundial 2026 le apareció otro problema: autoridades de Estados Unidos lanzan alerta por numerosos fraudes y venta de entradas falsas",
+                color: "#047857", 
+                border: "#4da6ff", 
+                badge: "🔍 Escanear Verificación", 
+                imagen: "imagen4.png" 
+            },
+            { 
+                titulo: "Libro", 
+                tituloLargo: "Libro: Metodología de la investigación", 
+                color: "#b91c1c", 
+                border: "#ff4d4d", 
+                imagen: "WhatsApp Image 2026-06-20 at 1.11.06 PM.jpeg", 
+                piePagina: "Página 42" 
+            },
+            { 
+                titulo: "Artículo", 
+                tituloLargo: "Artículo: Resignificación organizacional del área de recursos humanos y de mercadotecnia", 
+                bg: "", 
+                color: "#a21caf", 
+                border: "#f472b6", 
+                badge: "📄 Artículo Académico", 
+                imagen: "Imagen1.png", 
+                /* Estructurado en dos bloques <div> independientes */
+                piePagina: "<div>Página 156:<br>Primeros dos párrafos del apartado</div><div>Los recursos humanos según la teoría organizacional y la institucionalista</div>"
+            },
+            { 
+                titulo: "Obra de arte", 
+                tituloLargo: "Obra de arte: La ronda de noche", 
+                color: "#6d28d9", 
+                border: "#b366ff", 
+                imagen: "La_ronda_de_noche,_por_Rembrandt_van_Rijn.jpg",
+                esGrande: true 
+            },
+            { 
+                titulo: "Artículo", 
+                tituloLargo: "Artículo: Fraude, Plagio o Falta de Ética Profesional.", 
+                color: "#be185d", 
+                border: "#ff66b2", 
+                imagen: "Imagen9.png", 
+                /* Adaptado exactamente a la estructura bicolumna del Artículo 4 */
+                piePagina: "<div>Página 391:<br>Primeros dos párrafos del apartado</div><div>Plagio, IA e IAGen</div>" 
+            },
+            { 
+                titulo: "Obra de arte", 
+                tituloLargo: "Obra de arte: El matrimonio Arnolfini", 
+                color: "#0f766e", 
+                border: "#33ccb2", 
+                imagen: "Van_Eyck_-_Arnolfini_Portrait.jpg",
+                esGrande: true 
+            },
+            { 
+                titulo: "Artículo", 
+                tituloLargo: "Artículo: Inteligencia Artificial y Educación.", 
+                color: "#4338ca", 
+                border: "#94a3b8", 
+                imagen: "Imagen8.png", 
+                /* Adaptado exactamente a la estructura bicolumna del Artículo 4 */
+                piePagina: "<div>Página 246:<br>Primeros dos párrafos del apartado</div><div>Introducción</div>" 
+            },
+            { 
+                titulo: "Falta", 
+                tituloLargo: "Falta", 
+                bg: "linear-gradient(135deg, #4a0000, #140000)", 
+                color: "#9f1239", 
+                border: "#ef4444", 
+                badge: "⚠️ Casilla Especial" 
+            },
+            { titulo: "Fake News", tituloLargo: "Fake News: Registraduria Nacional", color: "#0e3a5d", border: "#22d3ee", badge: "🔍 Escanear Código QR", imagen: "imagen5.png" },
+            { titulo: "Artículo", tituloLargo: "Artículo: Chatbots e Inteligencia Artificial en Educación Secundaria y Media", bg: "", color: "#ca8a04", border: "#fbbf24", badge: "🤖 IA y Educación", imagen: "Imagen2.png", /* Adaptado exactamente a la estructura bicolumna del Artículo 4 */ piePagina: "<div>Página 57:<br>Primeros dos párrafos del apartado</div><div>Desafíos, oportunidades e impacto de la IA en la educación</div>" },
+            { 
+                titulo: "Falta", 
+                tituloLargo: "Falta", 
+                bg: "linear-gradient(135deg, #c2410c, #431407)", 
+                color: "#ea580c", 
+                border: "#ff7a33", 
+                badge: "⚠️ Casilla Especial" 
+            }
+        ];
+
+        const canvas = document.getElementById("wheelCanvas");
+        const ctx = canvas.getContext("2d");
+        const listContainer = document.getElementById('booksList');
+         
+        const numSeg = librosData.length;
+        const anglePerSeg = (2 * Math.PI) / numSeg;
+        let startAngle = 0;
+
+        librosData.forEach((lib, i) => {
+            const div = document.createElement('div');
+            div.className = 'book-item';
+            div.innerHTML = `<strong>${i + 1}.</strong> ${lib.titulo}`;
+            div.onclick = () => openModal(i);
+            listContainer.appendChild(div);
+        });
+
+        function drawWheel(currentAngle) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = centerX;
+
+            for (let i = 0; i < numSeg; i++) {
+                const segAngle = currentAngle + (i * anglePerSeg);
+                 
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, segAngle, segAngle + anglePerSeg);
+                ctx.closePath();
+                ctx.fillStyle = librosData[i].color;
+                ctx.fill();
+                ctx.strokeStyle = "rgba(255,255,255,0.3)";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(segAngle + (anglePerSeg / 2));
+                 
+                ctx.fillStyle = "#FFFFFF";
+                ctx.font = "bold 12px sans-serif";
+                ctx.textAlign = "right";
+                ctx.textBaseline = "middle";
+
+                let txt = librosData[i].titulo;
+                if(txt.length > 20) txt = txt.substring(0,18) + "...";
+                 
+                ctx.fillText(txt.toUpperCase(), radius - 35, 0);
+                ctx.restore();
+            }
+        }
+
+        drawWheel(startAngle);
+
+        let isSpinning = false;
+
+        function spinWheel() {
+            if (isSpinning) return;
+            isSpinning = true;
+
+            const items = document.querySelectorAll('.book-item');
+            items.forEach(item => item.classList.remove('selected-item'));
+
+            const spinDuration = 4500; 
+            const startTime = performance.now();
+             
+            const randomExtra = Math.random() * Math.PI * 2;
+            const totalRotation = (Math.PI * 2 * 6) + randomExtra; 
+            const initialAngle = startAngle;
+
+            function animate(currentTime) {
+                const elapsed = currentTime - startTime;
+                 
+                if (elapsed >= spinDuration) {
+                    startAngle = initialAngle + totalRotation;
+                    drawWheel(startAngle);
+                    isSpinning = false;
+
+                    const normalizedAngle = startAngle % (2 * Math.PI);
+                    let winnerAngle = (1.5 * Math.PI - normalizedAngle) % (2 * Math.PI);
+                    if (winnerAngle < 0) winnerAngle += 2 * Math.PI;
+
+                    const indexSelected = Math.floor(winnerAngle / anglePerSeg) % numSeg;
+                     
+                    items[indexSelected].classList.add('selected-item');
+                    setTimeout(() => openModal(indexSelected), 300);
+                } else {
+                    const progress = elapsed / spinDuration;
+                    const easeOut = 1 - Math.pow(1 - progress, 3);
+                     
+                    startAngle = initialAngle + (totalRotation * easeOut);
+                    drawWheel(startAngle);
+                     
+                    requestAnimationFrame(animate);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        function openModal(index) {
+            const data = librosData[index];
+            const modalContent = document.getElementById('modalContent');
+            const coverContainer = document.getElementById('modalCoverArt');
+             
+            // Formatear el título del modal agregando la clase de color diferenciado a las etiquetas deseadas
+            let textoTitulo = data.tituloLargo ? data.tituloLargo : data.titulo;
+            const prefijos = ["Libro:", "Artículo:", "Obra de arte:", "Fake News:"];
+            
+            for (let prefijo of prefijos) {
+                if (textoTitulo.startsWith(prefijo)) {
+                    textoTitulo = textoTitulo.replace(prefijo, `<span class="label-highlight">${prefijo}</span>`);
+                    break;
+                }
+            }
+            document.getElementById('modalBookTitle').innerHTML = textoTitulo;
+
+            coverContainer.style.border = `2px solid ${data.border}`;
+             
+            modalContent.classList.remove('large-view');
+             
+            if (data.esGrande) {
+                modalContent.classList.add('large-view');
+                coverContainer.className = 'cover-art expanded-art';
+            } else if (data.bg) {
+                coverContainer.className = 'cover-art generated-css';
+            } else {
+                coverContainer.className = 'cover-art';
+            }
+
+            if (data.imagen) {
+                coverContainer.style.background = '#ffffff';
+                 
+                let imgClass = 'cover-img';
+                if (data.piePagina) {
+                    imgClass += ' with-footer';
+                } else if (data.esGrande) {
+                    imgClass += ' scaled-view';
+                } else {
+                    imgClass += ' full-view';
+                }
+
+                let htmlContenido = `<img src="${data.imagen}" class="${imgClass}" alt="${data.titulo}">`;
+                 
+                if (data.piePagina) {
+                    let footerClass = data.piePagina.includes('div') ? 'cover-footer-text multiline' : 'cover-footer-text';
+                    htmlContenido += `<div class="${footerClass}">${data.piePagina}</div>`;
+                }
+                 
+                coverContainer.innerHTML = htmlContenido;
+            } else {
+                coverContainer.style.background = data.bg;
+                coverContainer.innerHTML = `
+                    <div class="cover-title">${data.titulo.toUpperCase()}</div>
+                    <div class="cover-badge">${data.badge}</div>
+                `;
+            }
+
+            document.getElementById('bookModal').style.display = "flex";
+        }
+
+        function closeModal() {
+            document.getElementById('bookModal').style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('bookModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>
